@@ -13,7 +13,7 @@ public class DatabricksAzureBlobStorageConfigProvider extends DatabricksStorageC
   private final AzureBlobStorageConfig azureConfig;
 
   public DatabricksAzureBlobStorageConfigProvider(JsonNode config) {
-    this.azureConfig = AzureBlobStorageConfig.getAzureBlobConfig(config);
+    this.azureConfig = AzureBlobStorageConfig.Companion.getAzureBlobConfig(config);
   }
 
   @Override

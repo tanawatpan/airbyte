@@ -52,7 +52,7 @@ abstract class AbstractJdbcDestination<DestinationState : MinimumDestinationStat
     driverClass: String,
     private val optimalBatchSizeBytes: Long,
     protected open val namingResolver: NamingConventionTransformer,
-    protected val sqlOperations: SqlOperations,
+    protected open val sqlOperations: SqlOperations,
 ) : JdbcConnector(driverClass), Destination {
 
     constructor(
@@ -63,8 +63,9 @@ abstract class AbstractJdbcDestination<DestinationState : MinimumDestinationStat
         driverClass,
         JdbcBufferedConsumerFactory.DEFAULT_OPTIMAL_BATCH_SIZE_FOR_FLUSH,
         namingResolver,
-        sqlOperations
+        sqlOperations,
     )
+
     protected val configSchemaKey: String
         get() = "schema"
 
@@ -128,7 +129,8 @@ abstract class AbstractJdbcDestination<DestinationState : MinimumDestinationStat
      * @throws Exception
      */
     @Throws(Exception::class)
-    protected open fun destinationSpecificTableOperations(database: JdbcDatabase?) {}
+    protected open fun destinationSpecificTableOperations(database: JdbcDatabase?) {
+    }
 
     /**
      * Subclasses which need to modify the DataSource should override [.modifyDataSourceBuilder]
@@ -140,13 +142,13 @@ abstract class AbstractJdbcDestination<DestinationState : MinimumDestinationStat
         val connectionProperties = getConnectionProperties(config)
         val builder =
             DataSourceFactory.DataSourceBuilder(
-                    jdbcConfig[JdbcUtils.USERNAME_KEY].asText(),
-                    if (jdbcConfig.has(JdbcUtils.PASSWORD_KEY))
-                        jdbcConfig[JdbcUtils.PASSWORD_KEY].asText()
-                    else null,
-                    driverClassName,
-                    jdbcConfig[JdbcUtils.JDBC_URL_KEY].asText(),
-                )
+                jdbcConfig[JdbcUtils.USERNAME_KEY].asText(),
+                if (jdbcConfig.has(JdbcUtils.PASSWORD_KEY))
+                    jdbcConfig[JdbcUtils.PASSWORD_KEY].asText()
+                else null,
+                driverClassName,
+                jdbcConfig[JdbcUtils.JDBC_URL_KEY].asText(),
+            )
                 .withConnectionProperties(connectionProperties)
                 .withConnectionTimeout(getConnectionTimeout(connectionProperties))
         return modifyDataSourceBuilder(builder).build()

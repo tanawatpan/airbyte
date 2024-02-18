@@ -1,0 +1,15 @@
+{
+  "accept_terms" : true,
+  "databricks_server_hostname" : "<DATABRICKS_HOSTNAME>",
+  "databricks_http_path" : "<DATABRICKS_HTTP_PATH>",
+  "databricks_port" : "443",
+  "databricks_personal_access_token" : "<DATABRICKS_TOKEN>",
+  "database" : "<DATABRICKS_CATALOG>",
+  "schema" : "<DATABRICKS_SCHEMA>",
+  "data_source" : {
+    "data_source_type" : "MANAGED_TABLES_STORAGE"
+  },
+  "purge_staging_data" : true,
+  "optimize_table" : true,
+  "vacuum_table" : true
+}

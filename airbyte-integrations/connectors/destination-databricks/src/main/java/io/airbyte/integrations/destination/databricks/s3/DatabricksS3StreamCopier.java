@@ -44,12 +44,12 @@ import org.slf4j.LoggerFactory;
  */
 public class DatabricksS3StreamCopier extends DatabricksStreamCopier {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(DatabricksS3StreamCopier.class);
+  protected static final Logger LOGGER = LoggerFactory.getLogger(DatabricksS3StreamCopier.class);
   private static final ObjectMapper MAPPER = new ObjectMapper();
 
   private final AmazonS3 s3Client;
   private final S3DestinationConfig s3Config;
-  private final S3ParquetWriter parquetWriter;
+  protected final S3ParquetWriter parquetWriter;
 
   public DatabricksS3StreamCopier(final String stagingFolder,
                                   final String catalog,
@@ -111,7 +111,8 @@ public class DatabricksS3StreamCopier extends DatabricksStreamCopier {
 
   @Override
   public String generateMergeStatement(final String destTableName) {
-    final String copyData = String.format(
+      //    LOGGER.info(copyData);
+    return String.format(
         "COPY INTO %s.%s.%s " +
             "FROM '%s' " +
             "FILEFORMAT = PARQUET " +
@@ -123,8 +124,6 @@ public class DatabricksS3StreamCopier extends DatabricksStreamCopier {
         getTmpTableLocation(),
         parquetWriter.getOutputFilename(),
         databricksConfig.enableSchemaEvolution());
-    LOGGER.info(copyData);
-    return copyData;
   }
 
   @Override

@@ -86,12 +86,22 @@ allprojects {
     // Build connector image as part of 'assemble' task.
     // This is required for local 'integrationTest' execution.
     def buildConnectorImage = airbyteCIConnectorsTask(
-            'buildConnectorImage', '--disable-report-auto-open', 'build', '--use-host-gradle-dist-tar')
+            'buildConnectorImage', '--disable-report-auto-open', 'build',
+            '--architecture=linux/amd64', '--architecture=linux/arm64',
+            '--use-host-gradle-dist-tar')
     buildConnectorImage.configure {
         // Images for java projects always rely on the distribution tarball.
         dependsOn tasks.matching { it.name == 'distTar' }
         // Ensure that all files exist beforehand.
         dependsOn tasks.matching { it.name == 'generate' }
+
+        doLast {
+            exec {
+                def arch = System.getProperty('os.arch')
+                def archName = arch == 'aarch64' ? 'arm64' : 'amd64'
+                commandLine "docker", "tag", "airbyte/destination-databricks:dev-linux-$archName", "airbyte/destination-databricks:dev"
+            }
+        }
     }
     tasks.named('assemble').configure {
         // We may revisit the dependency on assemble but the dependency should always be on a base task.

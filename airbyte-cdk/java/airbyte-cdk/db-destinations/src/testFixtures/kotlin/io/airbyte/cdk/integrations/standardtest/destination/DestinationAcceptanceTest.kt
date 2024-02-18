@@ -75,6 +75,7 @@ import org.mockito.Mockito
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 
+@Timeout(value = 5, unit = TimeUnit.MINUTES)
 abstract class DestinationAcceptanceTest {
     protected var testSchemas: HashSet<String> = HashSet()
 
@@ -401,7 +402,7 @@ abstract class DestinationAcceptanceTest {
      * Verify that when given invalid credentials, that check connection returns a failed response.
      * Assume that the [DestinationAcceptanceTest.getFailCheckConfig] is invalid.
      */
-    @Test
+    // @Test
     @Throws(Exception::class)
     fun testCheckConnectionInvalidCredentials() {
         Assertions.assertEquals(

@@ -39,7 +39,7 @@ class DatabricksS3StreamCopierTest {
 
   @Test
   public void testGetStagingS3DestinationConfig() {
-    final S3DestinationConfig config = S3DestinationConfig.create("", bucketPath, "").get();
+    final S3DestinationConfig config = S3DestinationConfig.create("", bucketPath, "").withAccessKeyCredential("", "").get();
     final S3DestinationConfig stagingConfig = DatabricksS3StreamCopier.getStagingS3DestinationConfig(config, stagingFolder);
     assertEquals(String.format("%s/%s", bucketPath, stagingFolder), stagingConfig.getBucketPath());
   }
@@ -69,7 +69,7 @@ class DatabricksS3StreamCopierTest {
             .set("data_source", dataS3Config);
 
     DatabricksDestinationConfig databricksConfig = DatabricksDestinationConfig.get(config);
-    DatabricksS3StreamCopierFactory factory = new DatabricksS3StreamCopierFactory() {
+    DatabricksS3StreamCopierFactoryV2 factory = new DatabricksS3StreamCopierFactoryV2() {
       @Override
       public StreamCopier create(String configuredSchema, DatabricksDestinationConfig databricksConfig, String stagingFolder, ConfiguredAirbyteStream configuredStream, StandardNameTransformer nameTransformer, JdbcDatabase database, SqlOperations sqlOperations) {
         try {

@@ -111,7 +111,7 @@ open class S3DestinationConfig {
         LOGGER.info("Creating S3 client...")
 
         val credentialsProvider = s3CredentialConfig!!.s3CredentialsProvider
-        val credentialType = s3CredentialConfig!!.credentialType
+        val credentialType = s3CredentialConfig.credentialType
 
         if (S3CredentialType.DEFAULT_PROFILE == credentialType) {
             return AmazonS3ClientBuilder.standard()
@@ -137,7 +137,7 @@ open class S3DestinationConfig {
 
         return AmazonS3ClientBuilder.standard()
             .withEndpointConfiguration(
-                AwsClientBuilder.EndpointConfiguration(endpoint, bucketRegion)
+                AwsClientBuilder.EndpointConfiguration(endpoint, bucketRegion),
             )
             .withPathStyleAccessEnabled(true)
             .withClientConfiguration(clientConfiguration)
@@ -168,7 +168,7 @@ open class S3DestinationConfig {
             bucketPath,
             bucketRegion,
             s3CredentialConfig,
-            formatConfig
+            formatConfig,
         )
     }
 
@@ -261,7 +261,7 @@ open class S3DestinationConfig {
                 s3Client,
                 fileNamePattern,
                 checkIntegrity,
-                uploadThreadsCount
+                uploadThreadsCount,
             )
         }
     }
@@ -277,10 +277,11 @@ open class S3DestinationConfig {
 
         @JvmStatic
         fun create(config: S3DestinationConfig): Builder {
-            return Builder(config.bucketName, config.bucketPath!!, config.bucketRegion)
-                .withEndpoint(config.endpoint)
-                .withCredentialConfig(config.s3CredentialConfig!!)
-                .withFormatConfig(config.formatConfig)
+            return Builder(config.bucketName, config.bucketPath!!, config.bucketRegion).apply {
+                config.endpoint?.let { withEndpoint(it) }
+                config.s3CredentialConfig?.let { withCredentialConfig(it) }
+                config.formatConfig?.let { withFormatConfig(it) }
+            }
         }
 
         @JvmStatic
@@ -297,10 +298,10 @@ open class S3DestinationConfig {
                 create(
                     getProperty(config, S3Constants.S_3_BUCKET_NAME),
                     "",
-                    getProperty(config, S3Constants.S_3_BUCKET_REGION)
+                    getProperty(config, S3Constants.S_3_BUCKET_REGION),
                 )
 
-            if (config!!.has(S3Constants.S_3_BUCKET_PATH)) {
+            if (config.has(S3Constants.S_3_BUCKET_PATH)) {
                 builder = builder.withBucketPath(config[S3Constants.S_3_BUCKET_PATH].asText())
             }
 
@@ -319,18 +320,19 @@ open class S3DestinationConfig {
                         val endpoint =
                             String.format(
                                 R2_INSTANCE_URL,
-                                getProperty(config, S3Constants.ACCOUNT_ID)
+                                getProperty(config, S3Constants.ACCOUNT_ID),
                             )
                         builder = builder.withEndpoint(endpoint)
                     }
                     builder =
                         builder
                             .withCheckIntegrity(
-                                false
+                                false,
                             ) // https://developers.cloudflare.com/r2/platform/s3-compatibility/api/#implemented-object-level-operations
                             // 3 or less
                             .withUploadThreadsCount(S3StorageOperations.R2_UPLOAD_THREADS)
                 }
+
                 else -> {
                     if (config.has(S3Constants.S_3_ENDPOINT)) {
                         builder = builder.withEndpoint(config[S3Constants.S_3_ENDPOINT].asText())
@@ -341,7 +343,7 @@ open class S3DestinationConfig {
                 if (config.has(S3Constants.ACCESS_KEY_ID)) {
                     S3AccessKeyCredentialConfig(
                         getProperty(config, S3Constants.ACCESS_KEY_ID),
-                        getProperty(config, S3Constants.SECRET_ACCESS_KEY)
+                        getProperty(config, S3Constants.SECRET_ACCESS_KEY),
                     )
                 } else {
                     S3AWSDefaultProfileCredentialConfig()

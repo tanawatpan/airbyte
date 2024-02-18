@@ -15,24 +15,24 @@ import org.slf4j.LoggerFactory;
 
 public class DatabricksStorageConfigProvider {
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(DatabricksStorageConfigProvider.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(DatabricksStorageConfigProvider.class);
 
-  public static DatabricksStorageConfigProvider getDatabricksStorageConfig(final JsonNode config) {
-    final JsonNode typeConfig = config.get(DatabricksConstants.DATABRICKS_DATA_SOURCE_TYPE_KEY);
-    LOGGER.info("Databricks storage type config: {}", typeConfig.toString());
-    return switch (DatabricksStorageType.valueOf(typeConfig.asText())) {
-      case MANAGED_TABLES_STORAGE -> null; // No need for extra storage config
-      case S3_STORAGE -> new DatabricksS3StorageConfigProvider(config);
-      case AZURE_BLOB_STORAGE -> new DatabricksAzureBlobStorageConfigProvider(config);
-    };
-  }
+    public static DatabricksStorageConfigProvider getDatabricksStorageConfig(final JsonNode config) {
+        final JsonNode typeConfig = config.get(DatabricksConstants.DATABRICKS_DATA_SOURCE_TYPE_KEY);
+        LOGGER.info("Databricks storage type config: {}", typeConfig.toString());
+        return switch (DatabricksStorageType.valueOf(typeConfig.asText())) {
+            case MANAGED_TABLES_STORAGE -> null; // No need for extra storage config
+            case S3_STORAGE -> new DatabricksS3StorageConfigProvider(config);
+            case AZURE_BLOB_STORAGE -> new DatabricksAzureBlobStorageConfigProvider(config);
+        };
+    }
 
-  public AzureBlobStorageConfig getAzureBlobStorageConfigOrThrow() {
-    throw new UnsupportedOperationException("Cannot get Azure Blob Storage config from " + this.getClass().getSimpleName());
-  }
+    public AzureBlobStorageConfig getAzureBlobStorageConfigOrThrow() {
+        throw new UnsupportedOperationException("Cannot get Azure Blob Storage config from " + this.getClass().getSimpleName());
+    }
 
-  public S3DestinationConfig getS3DestinationConfigOrThrow() {
-    throw new UnsupportedOperationException("Cannot get S3 destination config from " + this.getClass().getSimpleName());
-  }
+    public S3DestinationConfig getS3DestinationConfigOrThrow() {
+        throw new UnsupportedOperationException("Cannot get S3 destination config from " + this.getClass().getSimpleName());
+    }
 
 }
