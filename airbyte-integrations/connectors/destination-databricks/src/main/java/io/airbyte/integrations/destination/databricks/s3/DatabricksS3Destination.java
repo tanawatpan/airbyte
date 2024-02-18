@@ -21,7 +21,7 @@ public class DatabricksS3Destination extends DatabricksExternalStorageBaseDestin
 
   @Override
   protected DatabricksStreamCopierFactory getStreamCopierFactory() {
-    return new DatabricksS3StreamCopierFactory();
+    return new DatabricksS3StreamCopierFactoryV2();
   }
 
 }

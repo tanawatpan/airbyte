@@ -15,19 +15,25 @@
 plugins {
     id 'application'
     id 'airbyte-java-connector'
-    id "de.undercouch.download" version "5.0.1"
+    id "de.undercouch.download" version "5.6.0"
+    id 'org.jetbrains.kotlin.jvm' version '1.9.22'
 }
 
 airbyteJavaConnector {
-    cdkVersionRequired = '0.2.0'
-    features = ['db-destinations']
-    useLocalCdk = false
+    cdkVersionRequired = '0.27.4'
+    features = ['db-destinations', 'typing-deduping']
+    useLocalCdk = true
 }
 
 //remove once upgrading the CDK version to 0.4.x or later
 java {
     compileJava {
         options.compilerArgs.remove("-Werror")
+    }
+    compileKotlin {
+        compilerOptions {
+            allWarningsAsErrors = false
+        }
     }
 }
 
@@ -38,23 +44,70 @@ application {
     applicationDefaultJvmArgs = ['-XX:+ExitOnOutOfMemoryError', '-XX:MaxRAMPercentage=75.0']
 }
 
+tasks.register('unitTest', Test) {
+    useJUnitPlatform()
+
+    testLogging {
+        events "passed", "failed", "skipped"
+        showStandardStreams = true
+        exceptionFormat = 'full'
+        outputs.upToDateWhen { false }
+    }
+}
+
+sourceSets {
+    IntegrationTestCustom {
+        java {
+            srcDirs = ['src/test-integration-custom/kotlin']
+        }
+        resources {
+            srcDirs = ['src/test-integration-custom/resources']
+        }
+        compileClasspath += sourceSets.test.compileClasspath
+        runtimeClasspath += sourceSets.test.runtimeClasspath
+    }
+}
+
+tasks.register('IntegrationTestCustom', Test) {
+    dependsOn 'unitTest'
+
+    classpath = sourceSets.IntegrationTestCustom.runtimeClasspath
+    testClassesDirs = sourceSets.IntegrationTestCustom.output.classesDirs
+
+    useJUnitPlatform()
+
+    testLogging {
+        events "passed", "failed", "skipped"
+        showStandardStreams = true
+        exceptionFormat = 'full'
+        outputs.upToDateWhen { false }
+    }
+}
+
 dependencies {
+    implementation 'org.jetbrains.kotlin:kotlin-stdlib'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.0'
+    testImplementation 'org.jetbrains.kotlin:kotlin-test'
+    testImplementation 'io.mockk:mockk:1.13.10'
+
+    implementation project(':airbyte-cdk:java:airbyte-cdk:s3-destinations')
+    implementation project(':airbyte-cdk:java:airbyte-cdk:azure-destinations')
     implementation project(':airbyte-integrations:connectors:destination-s3')
     implementation project(':airbyte-integrations:connectors:destination-azure-blob-storage')
-    implementation group: 'com.databricks', name: 'databricks-jdbc', version: '2.6.25'
+    implementation group: 'com.databricks', name: 'databricks-jdbc', version: '2.6.36'
 
     // parquet
-    implementation ('org.apache.hadoop:hadoop-common:3.3.3') {
+    implementation('org.apache.hadoop:hadoop-common:3.3.4') {
         exclude group: 'org.slf4j', module: 'slf4j-log4j12'
         exclude group: 'org.slf4j', module: 'slf4j-reload4j'
     }
-    implementation ('org.apache.hadoop:hadoop-aws:3.3.3') { exclude group: 'org.slf4j', module: 'slf4j-log4j12'}
-    implementation ('org.apache.hadoop:hadoop-mapreduce-client-core:3.3.3') {
+    implementation('org.apache.hadoop:hadoop-aws:3.3.4') { exclude group: 'org.slf4j', module: 'slf4j-log4j12' }
+    implementation('org.apache.hadoop:hadoop-mapreduce-client-core:3.3.4') {
         exclude group: 'org.slf4j', module: 'slf4j-log4j12'
         exclude group: 'org.slf4j', module: 'slf4j-reload4j'
     }
-    implementation ('org.apache.parquet:parquet-avro:1.12.0') { exclude group: 'org.slf4j', module: 'slf4j-log4j12'}
-    implementation ('com.github.airbytehq:json-avro-converter:1.1.0') { exclude group: 'ch.qos.logback', module: 'logback-classic'}
+    implementation('org.apache.parquet:parquet-avro:1.13.1') { exclude group: 'org.slf4j', module: 'slf4j-log4j12' }
+    implementation('com.github.airbytehq:json-avro-converter:1.1.0') { exclude group: 'ch.qos.logback', module: 'logback-classic' }
 
     implementation 'com.azure:azure-storage-blob:12.18.0'
 }

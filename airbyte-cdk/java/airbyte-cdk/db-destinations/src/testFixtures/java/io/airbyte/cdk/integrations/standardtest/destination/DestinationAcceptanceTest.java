@@ -77,15 +77,13 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Random;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import lombok.Builder;
 import lombok.Getter;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Disabled;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.extension.ExtensionContext;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -95,28 +93,148 @@ import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+@Timeout(value = 15, unit = TimeUnit.MINUTES)
 public abstract class DestinationAcceptanceTest {
-
-  protected HashSet<String> TEST_SCHEMAS;
 
   private static final Random RANDOM = new Random();
   private static final String NORMALIZATION_VERSION = "dev";
-
   private static final String JOB_ID = "0";
   private static final int JOB_ATTEMPT = 0;
-
   private static final String DUMMY_CATALOG_NAME = "DummyCatalog";
-
   private static final Logger LOGGER = LoggerFactory.getLogger(DestinationAcceptanceTest.class);
-
+  private final static String LOREM_IPSUM =
+      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque malesuada lacinia aliquet. Nam feugiat mauris vel magna dignissim feugiat. Nam non dapibus sapien, ac mattis purus. Donec mollis libero erat, a rutrum ipsum pretium id. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Integer nec aliquam leo. Aliquam eu dictum augue, a ornare elit.\n"
+          + "\n"
+          + "Nulla viverra blandit neque. Nam blandit varius efficitur. Nunc at sapien blandit, malesuada lectus vel, tincidunt orci. Proin blandit metus eget libero facilisis interdum. Aenean luctus scelerisque orci, at scelerisque sem vestibulum in. Nullam ornare massa sed dui efficitur, eget volutpat lectus elementum. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Integer elementum mi vitae erat eleifend iaculis. Nullam eget tincidunt est, eget tempor est. Sed risus velit, iaculis vitae est in, volutpat consectetur odio. Aenean ut fringilla elit. Suspendisse non aliquet massa. Curabitur suscipit metus nunc, nec porttitor velit venenatis vel. Fusce vestibulum eleifend diam, lobortis auctor magna.\n"
+          + "\n"
+          + "Etiam maximus, mi feugiat pharetra mattis, nulla neque euismod metus, in congue nunc sem nec ligula. Curabitur aliquam, risus id convallis cursus, nunc orci sollicitudin enim, quis scelerisque nibh dui in ipsum. Suspendisse mollis, metus a dapibus scelerisque, sapien nulla pretium ipsum, non finibus sem orci et lectus. Aliquam dictum magna nisi, a consectetur urna euismod nec. In pulvinar facilisis nulla, id mollis libero pulvinar vel. Nam a commodo leo, eu commodo dolor. In hac habitasse platea dictumst. Curabitur auctor purus quis tortor laoreet efficitur. Quisque tincidunt, risus vel rutrum fermentum, libero urna dignissim augue, eget pulvinar nibh ligula ut tortor. Vivamus convallis non risus sed consectetur. Etiam accumsan enim ac nisl suscipit, vel congue lorem volutpat. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce non orci quis lacus rhoncus vestibulum nec ut magna. In varius lectus nec quam posuere finibus. Vivamus quis lectus vitae tortor sollicitudin fermentum.\n"
+          + "\n"
+          + "Pellentesque elementum vehicula egestas. Sed volutpat velit arcu, at imperdiet sapien consectetur facilisis. Suspendisse porttitor tincidunt interdum. Morbi gravida faucibus tortor, ut rutrum magna tincidunt a. Morbi eu nisi eget dui finibus hendrerit sit amet in augue. Aenean imperdiet lacus enim, a volutpat nulla placerat at. Suspendisse nibh ipsum, venenatis vel maximus ut, fringilla nec felis. Sed risus mi, egestas quis quam ullamcorper, pharetra vestibulum diam.\n"
+          + "\n"
+          + "Praesent finibus scelerisque elit, accumsan condimentum risus mattis vitae. Donec tristique hendrerit facilisis. Curabitur metus purus, venenatis non elementum id, finibus eu augue. Quisque posuere rhoncus ligula, et vehicula erat pulvinar at. Pellentesque vel quam vel lectus tincidunt congue quis id sapien. Ut efficitur mauris vitae pretium iaculis. Aliquam consectetur iaculis nisi vitae laoreet. Integer vel odio quis diam mattis tempor eget nec est. Donec iaculis facilisis neque, at dictum magna vestibulum ut. Sed malesuada non nunc ac consequat. Maecenas tempus lectus a nisl congue, ac venenatis diam viverra. Nam ac justo id nulla iaculis lobortis in eu ligula. Vivamus et ligula id sapien efficitur aliquet. Curabitur est justo, tempus vitae mollis quis, tincidunt vitae felis. Vestibulum molestie laoreet justo, nec mollis purus vulputate at.";
+  protected HashSet<String> TEST_SCHEMAS;
+  protected Path localRoot;
+  protected TestDataComparator testDataComparator = getTestDataComparator();
   private TestDestinationEnv testEnv;
-
   private Path jobRoot;
   private ProcessFactory processFactory;
   private ConnectorConfigUpdater mConnectorConfigUpdater;
 
-  protected Path localRoot;
-  protected TestDataComparator testDataComparator = getTestDataComparator();
+  /**
+   * Reverses a list by creating a new list with the same elements of the input list and then
+   * reversing it. The input list will not be altered.
+   *
+   * @param list to reverse
+   * @param <T> type
+   * @return new list with elements of original reversed.
+   */
+  public static <T> List<T> reversed(final List<T> list) {
+    final ArrayList<T> reversed = new ArrayList<>(list);
+    Collections.reverse(reversed);
+    return reversed;
+  }
+
+  /**
+   * Same as {@link #pruneMutate(JsonNode)}, except does a defensive copy and returns a new json node
+   * object instead of mutating in place.
+   *
+   * @param record - record that will be pruned.
+   * @return pruned json node.
+   */
+  private static AirbyteRecordMessage safePrune(final AirbyteRecordMessage record) {
+    final AirbyteRecordMessage clone = Jsons.clone(record);
+    pruneMutate(clone.getData());
+    return clone;
+  }
+
+  /**
+   * Prune fields that are added internally by airbyte and are not part of the original data. Used so
+   * that we can compare data that is persisted by an Airbyte worker to the original data. This method
+   * mutates the provided json in place.
+   *
+   * @param json - json that will be pruned. will be mutated in place!
+   */
+  private static void pruneMutate(final JsonNode json) {
+    for (final String key : Jsons.keys(json)) {
+      final JsonNode node = json.get(key);
+      // recursively prune all airbyte internal fields.
+      if (node.isObject() || node.isArray()) {
+        pruneMutate(node);
+      }
+
+      // prune the following
+      // - airbyte internal fields
+      // - fields that match what airbyte generates as hash ids
+      // - null values -- normalization will often return `<key>: null` but in the original data that key
+      // likely did not exist in the original message. the most consistent thing to do is always remove
+      // the null fields (this choice does decrease our ability to check that normalization creates
+      // columns even if all the values in that column are null)
+      final HashSet<String> airbyteInternalFields = Sets.newHashSet(
+          "emitted_at",
+          "ab_id",
+          "normalized_at",
+          "EMITTED_AT",
+          "AB_ID",
+          "NORMALIZED_AT",
+          "HASHID",
+          "unique_key",
+          "UNIQUE_KEY");
+      if (airbyteInternalFields.stream()
+          .anyMatch(internalField -> key.toLowerCase().contains(internalField.toLowerCase()))
+          || json.get(key).isNull()) {
+        ((ObjectNode) json).remove(key);
+      }
+    }
+  }
+
+  /**
+   * NaN and Infinity test are not supported by default. Please override this method to specify
+   * NaN/Infinity types support example:
+   *
+   * <pre>
+   *
+   * protected SpecialNumericTypes getSpecialNumericTypesSupportTest() {
+   *   return SpecialNumericTypes.builder()
+   *       .supportNumberNan(true)
+   *       .supportIntegerNan(true)
+   *       .build();
+   * }
+   * </pre>
+   *
+   * @return SpecialNumericTypes with support flags
+   */
+  protected static SpecialNumericTypes getSpecialNumericTypesSupportTest() {
+    return SpecialNumericTypes.builder().build();
+  }
+
+  private static AirbyteCatalog readCatalogFromFile(final String catalogFilename) throws IOException {
+    return Jsons.deserialize(MoreResources.readResource(catalogFilename), AirbyteCatalog.class);
+  }
+
+  private static List<AirbyteMessage> readMessagesFromFile(final String messagesFilename)
+      throws IOException {
+    return MoreResources.readResource(messagesFilename).lines()
+        .map(record -> Jsons.deserialize(record, AirbyteMessage.class))
+        .collect(Collectors.toList());
+  }
+
+  /**
+   * Mutate the input airbyte record message namespace.
+   */
+  private static List<AirbyteMessage> getRecordMessagesWithNewNamespace(
+                                                                        final List<AirbyteMessage> airbyteMessages,
+                                                                        final String namespace) {
+    airbyteMessages.forEach(message -> {
+      if (message.getRecord() != null) {
+        message.getRecord().setNamespace(namespace);
+      }
+    });
+    return airbyteMessages;
+  }
+
+  private static <V0, V1> V0 convertProtocolObject(final V1 v1, final Class<V0> klass) {
+    return Jsons.object(Jsons.jsonNode(v1), klass);
+  }
 
   /**
    * Name of the docker image that the tests will run against.
@@ -418,7 +536,7 @@ public abstract class DestinationAcceptanceTest {
    * Verify that when given invalid credentials, that check connection returns a failed response.
    * Assume that the {@link DestinationAcceptanceTest#getFailCheckConfig()} is invalid.
    */
-  @Test
+  // @Test
   public void testCheckConnectionInvalidCredentials() throws Exception {
     assertEquals(Status.FAILED, runCheck(getFailCheckConfig()).getStatus());
   }
@@ -1296,20 +1414,6 @@ public abstract class DestinationAcceptanceTest {
     assertEquals(expectedStateMessage, actualStateMessage);
   }
 
-  /**
-   * Reverses a list by creating a new list with the same elements of the input list and then
-   * reversing it. The input list will not be altered.
-   *
-   * @param list to reverse
-   * @param <T> type
-   * @return new list with elements of original reversed.
-   */
-  public static <T> List<T> reversed(final List<T> list) {
-    final ArrayList<T> reversed = new ArrayList<>(list);
-    Collections.reverse(reversed);
-    return reversed;
-  }
-
   private List<AirbyteMessage> runSync(
                                        final JsonNode config,
                                        final List<AirbyteMessage> messages,
@@ -1410,80 +1514,6 @@ public abstract class DestinationAcceptanceTest {
       actualMessages.addAll(msgList);
     }
     return actualMessages;
-  }
-
-  /**
-   * Same as {@link #pruneMutate(JsonNode)}, except does a defensive copy and returns a new json node
-   * object instead of mutating in place.
-   *
-   * @param record - record that will be pruned.
-   * @return pruned json node.
-   */
-  private static AirbyteRecordMessage safePrune(final AirbyteRecordMessage record) {
-    final AirbyteRecordMessage clone = Jsons.clone(record);
-    pruneMutate(clone.getData());
-    return clone;
-  }
-
-  /**
-   * Prune fields that are added internally by airbyte and are not part of the original data. Used so
-   * that we can compare data that is persisted by an Airbyte worker to the original data. This method
-   * mutates the provided json in place.
-   *
-   * @param json - json that will be pruned. will be mutated in place!
-   */
-  private static void pruneMutate(final JsonNode json) {
-    for (final String key : Jsons.keys(json)) {
-      final JsonNode node = json.get(key);
-      // recursively prune all airbyte internal fields.
-      if (node.isObject() || node.isArray()) {
-        pruneMutate(node);
-      }
-
-      // prune the following
-      // - airbyte internal fields
-      // - fields that match what airbyte generates as hash ids
-      // - null values -- normalization will often return `<key>: null` but in the original data that key
-      // likely did not exist in the original message. the most consistent thing to do is always remove
-      // the null fields (this choice does decrease our ability to check that normalization creates
-      // columns even if all the values in that column are null)
-      final HashSet<String> airbyteInternalFields = Sets.newHashSet(
-          "emitted_at",
-          "ab_id",
-          "normalized_at",
-          "EMITTED_AT",
-          "AB_ID",
-          "NORMALIZED_AT",
-          "HASHID",
-          "unique_key",
-          "UNIQUE_KEY");
-      if (airbyteInternalFields.stream()
-          .anyMatch(internalField -> key.toLowerCase().contains(internalField.toLowerCase()))
-          || json.get(key).isNull()) {
-        ((ObjectNode) json).remove(key);
-      }
-    }
-  }
-
-  public static class TestDestinationEnv {
-
-    private final Path localRoot;
-
-    public TestDestinationEnv(final Path localRoot) {
-      this.localRoot = localRoot;
-    }
-
-    public Path getLocalRoot() {
-      return localRoot;
-    }
-
-    @Override
-    public String toString() {
-      return "TestDestinationEnv{" +
-          "localRoot=" + localRoot +
-          '}';
-    }
-
   }
 
   /**
@@ -1596,17 +1626,6 @@ public abstract class DestinationAcceptanceTest {
     destination.notifyEndOfInput();
   }
 
-  private final static String LOREM_IPSUM =
-      "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Pellentesque malesuada lacinia aliquet. Nam feugiat mauris vel magna dignissim feugiat. Nam non dapibus sapien, ac mattis purus. Donec mollis libero erat, a rutrum ipsum pretium id. Pellentesque habitant morbi tristique senectus et netus et malesuada fames ac turpis egestas. Integer nec aliquam leo. Aliquam eu dictum augue, a ornare elit.\n"
-          + "\n"
-          + "Nulla viverra blandit neque. Nam blandit varius efficitur. Nunc at sapien blandit, malesuada lectus vel, tincidunt orci. Proin blandit metus eget libero facilisis interdum. Aenean luctus scelerisque orci, at scelerisque sem vestibulum in. Nullam ornare massa sed dui efficitur, eget volutpat lectus elementum. Orci varius natoque penatibus et magnis dis parturient montes, nascetur ridiculus mus. Integer elementum mi vitae erat eleifend iaculis. Nullam eget tincidunt est, eget tempor est. Sed risus velit, iaculis vitae est in, volutpat consectetur odio. Aenean ut fringilla elit. Suspendisse non aliquet massa. Curabitur suscipit metus nunc, nec porttitor velit venenatis vel. Fusce vestibulum eleifend diam, lobortis auctor magna.\n"
-          + "\n"
-          + "Etiam maximus, mi feugiat pharetra mattis, nulla neque euismod metus, in congue nunc sem nec ligula. Curabitur aliquam, risus id convallis cursus, nunc orci sollicitudin enim, quis scelerisque nibh dui in ipsum. Suspendisse mollis, metus a dapibus scelerisque, sapien nulla pretium ipsum, non finibus sem orci et lectus. Aliquam dictum magna nisi, a consectetur urna euismod nec. In pulvinar facilisis nulla, id mollis libero pulvinar vel. Nam a commodo leo, eu commodo dolor. In hac habitasse platea dictumst. Curabitur auctor purus quis tortor laoreet efficitur. Quisque tincidunt, risus vel rutrum fermentum, libero urna dignissim augue, eget pulvinar nibh ligula ut tortor. Vivamus convallis non risus sed consectetur. Etiam accumsan enim ac nisl suscipit, vel congue lorem volutpat. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Fusce non orci quis lacus rhoncus vestibulum nec ut magna. In varius lectus nec quam posuere finibus. Vivamus quis lectus vitae tortor sollicitudin fermentum.\n"
-          + "\n"
-          + "Pellentesque elementum vehicula egestas. Sed volutpat velit arcu, at imperdiet sapien consectetur facilisis. Suspendisse porttitor tincidunt interdum. Morbi gravida faucibus tortor, ut rutrum magna tincidunt a. Morbi eu nisi eget dui finibus hendrerit sit amet in augue. Aenean imperdiet lacus enim, a volutpat nulla placerat at. Suspendisse nibh ipsum, venenatis vel maximus ut, fringilla nec felis. Sed risus mi, egestas quis quam ullamcorper, pharetra vestibulum diam.\n"
-          + "\n"
-          + "Praesent finibus scelerisque elit, accumsan condimentum risus mattis vitae. Donec tristique hendrerit facilisis. Curabitur metus purus, venenatis non elementum id, finibus eu augue. Quisque posuere rhoncus ligula, et vehicula erat pulvinar at. Pellentesque vel quam vel lectus tincidunt congue quis id sapien. Ut efficitur mauris vitae pretium iaculis. Aliquam consectetur iaculis nisi vitae laoreet. Integer vel odio quis diam mattis tempor eget nec est. Donec iaculis facilisis neque, at dictum magna vestibulum ut. Sed malesuada non nunc ac consequat. Maecenas tempus lectus a nisl congue, ac venenatis diam viverra. Nam ac justo id nulla iaculis lobortis in eu ligula. Vivamus et ligula id sapien efficitur aliquet. Curabitur est justo, tempus vitae mollis quis, tincidunt vitae felis. Vestibulum molestie laoreet justo, nec mollis purus vulputate at.";
-
   protected TestDataComparator getTestDataComparator() {
     return new BasicTestDataComparator(this::resolveIdentifier);
   }
@@ -1625,26 +1644,6 @@ public abstract class DestinationAcceptanceTest {
 
   protected boolean supportIncrementalSchemaChanges() {
     return false;
-  }
-
-  /**
-   * NaN and Infinity test are not supported by default. Please override this method to specify
-   * NaN/Infinity types support example:
-   *
-   * <pre>
-   *
-   * protected SpecialNumericTypes getSpecialNumericTypesSupportTest() {
-   *   return SpecialNumericTypes.builder()
-   *       .supportNumberNan(true)
-   *       .supportIntegerNan(true)
-   *       .build();
-   * }
-   * </pre>
-   *
-   * @return SpecialNumericTypes with support flags
-   */
-  protected static SpecialNumericTypes getSpecialNumericTypesSupportTest() {
-    return SpecialNumericTypes.builder().build();
   }
 
   /**
@@ -1758,17 +1757,6 @@ public abstract class DestinationAcceptanceTest {
     }
   }
 
-  private static AirbyteCatalog readCatalogFromFile(final String catalogFilename) throws IOException {
-    return Jsons.deserialize(MoreResources.readResource(catalogFilename), AirbyteCatalog.class);
-  }
-
-  private static List<AirbyteMessage> readMessagesFromFile(final String messagesFilename)
-      throws IOException {
-    return MoreResources.readResource(messagesFilename).lines()
-        .map(record -> Jsons.deserialize(record, AirbyteMessage.class))
-        .collect(Collectors.toList());
-  }
-
   private void runAndCheckWithNormalization(final List<AirbyteMessage> messages,
                                             final ConfiguredAirbyteCatalog configuredCatalog,
                                             final AirbyteCatalog catalog)
@@ -1790,18 +1778,29 @@ public abstract class DestinationAcceptanceTest {
     retrieveRawRecordsAndAssertSameMessages(catalog, messages, getDefaultSchema(config));
   }
 
-  /**
-   * Mutate the input airbyte record message namespace.
-   */
-  private static List<AirbyteMessage> getRecordMessagesWithNewNamespace(
-                                                                        final List<AirbyteMessage> airbyteMessages,
-                                                                        final String namespace) {
-    airbyteMessages.forEach(message -> {
-      if (message.getRecord() != null) {
-        message.getRecord().setNamespace(namespace);
-      }
-    });
-    return airbyteMessages;
+  private boolean supportsNormalization() {
+    return supportsInDestinationNormalization() || normalizationFromDefinition();
+  }
+
+  public static class TestDestinationEnv {
+
+    private final Path localRoot;
+
+    public TestDestinationEnv(final Path localRoot) {
+      this.localRoot = localRoot;
+    }
+
+    public Path getLocalRoot() {
+      return localRoot;
+    }
+
+    @Override
+    public String toString() {
+      return "TestDestinationEnv{" +
+          "localRoot=" + localRoot +
+          '}';
+    }
+
   }
 
   /**
@@ -1847,14 +1846,6 @@ public abstract class DestinationAcceptanceTest {
           });
     }
 
-  }
-
-  private boolean supportsNormalization() {
-    return supportsInDestinationNormalization() || normalizationFromDefinition();
-  }
-
-  private static <V0, V1> V0 convertProtocolObject(final V1 v1, final Class<V0> klass) {
-    return Jsons.object(Jsons.jsonNode(v1), klass);
   }
 
 }

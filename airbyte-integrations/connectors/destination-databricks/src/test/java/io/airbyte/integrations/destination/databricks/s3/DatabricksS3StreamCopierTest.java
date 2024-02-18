@@ -69,7 +69,7 @@ class DatabricksS3StreamCopierTest {
             .set("data_source", dataS3Config);
 
     DatabricksDestinationConfig databricksConfig = DatabricksDestinationConfig.get(config);
-    DatabricksS3StreamCopierFactory factory = new DatabricksS3StreamCopierFactory() {
+    DatabricksS3StreamCopierFactoryV2 factory = new DatabricksS3StreamCopierFactoryV2() {
       @Override
       public StreamCopier create(String configuredSchema, DatabricksDestinationConfig databricksConfig, String stagingFolder, ConfiguredAirbyteStream configuredStream, StandardNameTransformer nameTransformer, JdbcDatabase database, SqlOperations sqlOperations) {
         try {

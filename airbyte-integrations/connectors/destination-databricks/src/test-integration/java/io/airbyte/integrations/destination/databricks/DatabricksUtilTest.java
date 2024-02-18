@@ -9,6 +9,7 @@ import io.airbyte.cdk.db.factory.DSLContextFactory;
 import io.airbyte.integrations.destination.databricks.utils.DatabricksConstants;
 import io.airbyte.integrations.destination.databricks.utils.DatabricksDatabaseUtil;
 import java.sql.SQLException;
+import java.time.Duration;
 import java.util.Map;
 import org.jooq.DSLContext;
 import org.jooq.SQLDialect;
@@ -33,12 +34,13 @@ public class DatabricksUtilTest {
   protected static DSLContext getDslContext(final DatabricksDestinationConfig databricksConfig) {
     return DSLContextFactory.create(DatabricksConstants.DATABRICKS_USERNAME,
         databricksConfig.personalAccessToken(), DatabricksConstants.DATABRICKS_DRIVER_CLASS,
-        DatabricksDatabaseUtil.getDatabricksConnectionString(databricksConfig), SQLDialect.DEFAULT, DEFAULT_PROPERTY);
+        DatabricksDatabaseUtil.getDatabricksConnectionString(databricksConfig), SQLDialect.DEFAULT, DEFAULT_PROPERTY, Duration.ofSeconds(600));
   }
 
   protected static void cleanUpData(final DatabricksDestinationConfig databricksConfig) throws SQLException {
     LOGGER.info("Dropping database schema {}", databricksConfig.schema());
-    try (final DSLContext dslContext = DatabricksUtilTest.getDslContext(databricksConfig)) {
+    try {
+      final DSLContext dslContext = DatabricksUtilTest.getDslContext(databricksConfig);
       final Database database = new Database(dslContext);
       // we cannot use jooq dropSchemaIfExists method here because there is no proper dialect for
       // Databricks, and it incorrectly quotes the schema name
